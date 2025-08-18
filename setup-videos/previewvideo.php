@@ -1,27 +1,35 @@
 <?php
-
 require_once '../config/config.php';
 
-$videourl=$_POST["videourl"];
-$videotitle=$_POST["videotitle"];
+$videourl   = $_POST["videourl"];
+$videotitle = $_POST["videotitle"];
 
-$sql="select * from videos";
-	$result = mysql_query($sql);
-    $num_rows = mysql_num_rows($result);
-	if  ($num_rows ==0) {$maxvideoid=0;}
-	else {
-		 $sql="select max(videoid) maxvideoid from videos";
-		 $result = mysql_query($sql);
-		 $row = mysql_fetch_array($result);
-		 $maxvideoid=$row['maxvideoid'];
-	     }
+// Query all videos
+$sql    = "SELECT * FROM videos";
 
-$videoid=$maxvideoid+1;
- 
+$result = mysqli_query($conn, $sql);
 
-		
-	     
+if (!$result) {
+    die("Query failed: " . mysqli_error($conn));
+}
 
+$num_rows = mysqli_num_rows($result);
+
+if ($num_rows == 0) {
+    $maxvideoid = 0;
+} else {
+    $sql    = "SELECT MAX(videoid) AS maxvideoid FROM videos";
+    $result = mysqli_query($conn, $sql);
+
+    if ($result) {
+        $row        = mysqli_fetch_assoc($result);
+        $maxvideoid = $row['maxvideoid'];
+    } else {
+        die("Query failed: " . mysqli_error($conn));
+    }
+}
+
+$videoid = $maxvideoid + 1;
 ?>
 
 

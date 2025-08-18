@@ -1,48 +1,36 @@
-
-
 <?php
-
 require_once '../config/config.php';
 
+$timestamps = json_decode($_POST['timestamps']); 
+$num        = $_POST['num'];
+$videoid    = $_POST['videoid'];
 
+for ($i = 0; $i < $num; $i++) {
+    $start       = $timestamps[$i]->start;
+    $end         = $timestamps[$i]->end;
+    $text        = $timestamps[$i]->comment;
+    $isEmbedCode = $timestamps[$i]->isEmbedCode;
 
+    // Get max urlid for this video
+    $sql    = "SELECT MAX(urlid) AS maxid FROM video_url_code WHERE videoid='$videoid'";
+    $result = mysqli_query($conn, $sql);
 
-
-
-$timestamps=json_decode($_POST['timestamps']); 
-$num=$_POST['num'];
-$videoid=$_POST['videoid'];
-//$num=5;
-
-//echo $comment;
-
-
-for($i=0;$i<$num;$i++) {
-	$start=$timestamps[$i]->start;
-	$end=$timestamps[$i]->end;
-	$text=$timestamps[$i]->comment;
-	$isEmbedCode=$timestamps[$i]->isEmbedCode;
-	$sql="select * from video_url_code where videoid='$videoid'";
-	$result = mysql_query($sql);
-    $num_rows = mysql_num_rows($result);
-	if  ($num_rows ==0) {$maxurlid=0;}
-	else {
-		 $sql="select max(urlid) maxid from video_url_code where videoid='$videoid'";
-		 $result = mysql_query($sql);
-		 $row = mysql_fetch_array($result);
-		 $maxurlid=$row['urlid'];
-	     }
-
-
-    $urlid=$maxurlid+1;
-    $sql="insert into video_url_code (urlid,videoid,start,end,text,isembedcode) values ('$urlid','$videoid','$start','$end','$text','$isEmbedCode')";
-    $result = mysql_query($sql);
+    if (!$result) {
+        die("Query failed: " . mysqli_error($conn));
     }
 
+    $row       = mysqli_fetch_assoc($result);
+    $maxurlid  = ($row && $row['maxid'] !== null) ? $row['maxid'] : 0;
+    $urlid     = $maxurlid + 1;
 
+    // Insert new row
+    $sql = "INSERT INTO video_url_code (urlid, videoid, start, end, text, isembedcode) 
+            VALUES ('$urlid', '$videoid', '$start', '$end', '$text', '$isEmbedCode')";
 
+    if (!mysqli_query($conn, $sql)) {
+        die("Insert failed: " . mysqli_error($conn));
+    }
+}
 
+echo "✅ Video URL codes saved successfully!";
 ?>
-
-
-

@@ -1,57 +1,38 @@
-
-
 <?php
-
 require_once '../config/config.php';
 
-
-
-
-
-$timestamps=json_decode($_POST['timestamps']); 
-$num=$_POST['num'];
-$videoid=$_POST['videoid'];
-//$num=5;
+$timestamps = json_decode($_POST['timestamps']); 
+$num        = $_POST['num'];
+$videoid    = $_POST['videoid'];
 
 echo $num;
 
+for ($i = 0; $i < $num; $i++) {
+    $start = $timestamps[$i]->start;
+    $end   = $timestamps[$i]->end;
+    $text  = $timestamps[$i]->comment;
 
-/*$myfile = fopen("C://newfile.txt", "w") or die("Unable to open file!"); //debugging
-$txt = "John Doe\n";
-fwrite($myfile, $num);*/
+    // Get the max subtitleid for this video
+    $sql    = "SELECT MAX(subtitleid) AS maxid FROM video_subtitles WHERE videoid='$videoid'";
+    $result = mysqli_query($conn, $sql);
 
-
-//echo $comment;
-
-
-for($i=0;$i<$num;$i++) {
-	
-	$start=$timestamps[$i]->start;
-	$end=$timestamps[$i]->end;
-	$text=$timestamps[$i]->comment;
-	$sql="select * from video_subtitles where videoid='$videoid'";
-	$result = mysql_query($sql);
-    $num_rows = mysql_num_rows($result);
-	if  ($num_rows ==0) {$maxsubtitleid=0;}
-	else {
-		 $sql="select max(subtitleid) maxid from video_subtitles where videoid='$videoid'";
-		 fwrite($myfile, $sql);
-		 $result = mysql_query($sql);
-		 $row = mysql_fetch_array($result);
-		 $maxsubtitleid=$row['maxid'];
-	     }
-
-
-    $subtitleid=$maxsubtitleid+1;
-    $sql="insert into video_subtitles (subtitleid,videoid,start,end,text) values ('$subtitleid','$videoid','$start','$end','$text')";
-    fwrite($myfile, $sql);
-	$result = mysql_query($sql);
+    if (!$result) {
+        die("Query failed: " . mysqli_error($conn));
     }
 
-//fclose($myfile);
+    $row           = mysqli_fetch_assoc($result);
+    $maxsubtitleid = ($row && $row['maxid'] !== null) ? $row['maxid'] : 0;
 
+    $subtitleid = $maxsubtitleid + 1;
 
+    // Insert new subtitle
+    $sql = "INSERT INTO video_subtitles (subtitleid, videoid, start, end, text) 
+            VALUES ('$subtitleid', '$videoid', '$start', '$end', '$text')";
+
+    if (!mysqli_query($conn, $sql)) {
+        die("Insert failed: " . mysqli_error($conn));
+    }
+}
+
+echo "✅ Subtitles saved successfully!";
 ?>
-
-
-
