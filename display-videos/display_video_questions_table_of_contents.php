@@ -1,217 +1,171 @@
 <?php
-
-
 session_start();
 if(!isset($_SESSION['mysid'])){
-header("location:main_login.php");}
-
-if(!isset($_GET['videoid'])){
-header("location:main_login.php");}
-
-
-require_once '../config/config.php';
-
-$sessionid=$_SESSION['mysid'];
-$videoid=$_GET['videoid']; 
-
-$sql="select * from videos where videoid='$videoid'";
-$result = mysql_query($sql);
-$row = mysql_fetch_array($result);
-$videotitle=$row['videotitle'];
-$videourl=$row['videourl'];
-
-
-
-$sql="select * from sessions where sessionid='$sessionid'";
-$result = mysql_query($sql);
-$row = mysql_fetch_array($result);
-$userid=$row['user_id'];
-
-//echo $userid;
-
-
-$data_questions=array();
- //unset($data);
-
- $data_questions_2=array();
-
- 
-
- class quiz_store { 
-	public  $qid;
-    public $start; 
-    public $endl;
-	public $Question;
-	public $Question_type;
-	public $Answer1;
-	public $Answer2;
-	public $Answer3;
-	public $Answer4;
-	public $Answer5;
-} 
-
-
-
-
-
-$sql="select * from video_quiz where videoid='$videoid' order by qid";
-$result = mysql_query($sql);
-$num_rows = mysql_num_rows($result);
-while($row = mysql_fetch_array($result))
-  {   
-
-	$quizobj=new quiz_store();
-    $quizobj->qid = $row['qid'];
-	$quizobj->start = $row['start'];
-    $quizobj->endl = $row['end'];
-
-    $quizobj->Question = $row['question'];
-	$quizobj->Question_type = $row['questionType'];
-
-	$quizobj->Answer1 = $row['answer1'];
-	$quizobj->Answer2 = $row['answer2'];
-	$quizobj->Answer3 = $row['answer3'];
-	$quizobj->Answer4 = $row['answer4'];
-	$quizobj->Answer5 = $row['answer5'];
-    
-	$sql2="select * from session_video_quiz where questionid='$quizobj->qid' and userid='$userid'";
-    $result2 = mysql_query($sql2);
-	$num_rows2 = mysql_num_rows($result2);
-	if ($num_rows2!=0) {$quizobj->Submitted = 1;}
-	else {$quizobj->Submitted = 0;}
-	
-
-
-	array_push($data_questions_2, $quizobj);
-     
-
-  $data_questions = array(
-		    "videoid" => $videoid,
-			"num_quiz_questions"=>$num_rows,
-		    "quiz_questions"  =>$data_questions_2
-		 
-            );
-	 
- //echo json_encode($data_questions);
-
-  }
-
-
-
-
-$sql="insert into session_videos (sessionid,videoid,startdate,starttime) values ($sessionid,$videoid,curdate(),curtime())";
-$result = mysql_query($sql);
-$vid=mysql_insert_id();
-
-
-//echo  'session='.$sessionid;
-
-
-
-$section_bool=1;
-//$time_sections=60;
-
-
- $data_sections=array();
- $data_time_sections=array();
- //unset($data);
-
-  $data_sections_2=array();
-  $data_time_sections_2=array();
-
- 
-
- class section_store { 
-	public  $sectionid;
-    public $start; 
-    public $endl;
-	public $title;
-} 
-
-
-
-$sql="select * from videos where videoid='$videoid'";
-$result = mysql_query($sql);
-$row = mysql_fetch_array($result);
-$video_duration=$row['videolength'];
-$time_sections=$row['time_section_threshold'];
-$video_sections_bool=$row['video_sections_bool'];
-
-
-if ($video_sections_bool==1) {
-
-	$sql="select * from video_sections where videoid='$videoid' order by sectionid";
-	$result = mysql_query($sql);
-	$num_rows = mysql_num_rows($result);
-	while($row = mysql_fetch_array($result))
-	  {   
-		$sectiond=$row['sectionid'];
-		$start=$row['start'];
-		$end=$row['end'];
-		$text=$row['title'];
-
-		$sectionobj=new section_store();
-		$sectionobj->sectionid = $row['sectionid'];
-		$sectionobj->start = $row['start'];
-		$sectionobj->endl = $row['end'];
-		$sectionobj->title = $row['title'];
-		array_push($data_sections_2, $sectionobj);
-		 
-
-	  $data_sections = array(
-				"videoid" => $videoid,
-				"numsections"=>$num_rows,
-				"sections"  =>$data_sections_2
-			 
-				);
-
-			//	echo json_encode($data);
-	  }
-
+    header("location:main_login.php");
+    exit;
 }
 
+if(!isset($_GET['videoid'])){
+    header("location:main_login.php");
+    exit;
+}
 
+require_once '../config/config.php'; // contains $conn (mysqli connection)
 
-    $intervals=round($video_duration/$time_sections);
-    $end=0;
-	
-	for ($i=0; $i<$intervals; $i++)
-	  {   
-		$sectionid=$i+1;
-		$start=$end+1;
-		$end=$start+$time_sections-1;
-		$title=$sectionid.'_section';
+$sessionid = intval($_SESSION['mysid']);
+$videoid   = intval($_GET['videoid']); 
 
-		$sectionobj=new section_store();
-		$sectionobj->sectionid = $sectionid;
-		$sectionobj->start = $start;
-		$sectionobj->endl = $end;
-		$sectionobj->title = $title;
-		array_push($data_time_sections_2, $sectionobj);
-		 
+// ---- Get video info ----
+$sql = "SELECT * FROM videos WHERE videoid='$videoid'";
+$result = mysqli_query($conn, $sql);
+$row = mysqli_fetch_assoc($result);
 
-	  $data_time_sections = array(
-				"videoid" => $videoid,
-				"numsections"=>$intervals,
-				"sections"  =>$data_time_sections_2
-			 
-				);
+$videotitle = $row['videotitle'] ?? '';
+$videourl   = $row['videourl'] ?? '';
 
-				
-	  }
+// ---- Get session info ----
+$sql = "SELECT * FROM sessions WHERE sessionid='$sessionid'";
+$result = mysqli_query($conn, $sql);
+$row = mysqli_fetch_assoc($result);
+$userid = $row['user_id'] ?? null;
 
-      
-	 // echo json_encode($data);
-	  //echo 'hello';
+// ---- Prepare arrays ----
+$data_questions   = [];
+$data_questions_2 = [];
 
+class quiz_store { 
+    public $qid;
+    public $start; 
+    public $endl;
+    public $Question;
+    public $Question_type;
+    public $Answer1;
+    public $Answer2;
+    public $Answer3;
+    public $Answer4;
+    public $Answer5;
+    public $Submitted;
+} 
 
+// ---- Get quiz questions ----
+$sql = "SELECT * FROM video_quiz WHERE videoid='$videoid' ORDER BY qid";
+$result = mysqli_query($conn, $sql);
+$num_rows = mysqli_num_rows($result);
 
+while($row = mysqli_fetch_assoc($result)) {   
+    $quizobj = new quiz_store();
+    $quizobj->qid           = $row['qid'];
+    $quizobj->start         = $row['start'];
+    $quizobj->endl          = $row['end'];
+    $quizobj->Question      = $row['question'];
+    $quizobj->Question_type = $row['questionType'];
+    $quizobj->Answer1       = $row['answer1'];
+    $quizobj->Answer2       = $row['answer2'];
+    $quizobj->Answer3       = $row['answer3'];
+    $quizobj->Answer4       = $row['answer4'];
+    $quizobj->Answer5       = $row['answer5'];
 
+    // Check if already submitted
+    $sql2 = "SELECT * FROM session_video_quiz WHERE questionid='$quizobj->qid' AND userid='$userid'";
+    $result2 = mysqli_query($conn, $sql2);
+    $quizobj->Submitted = mysqli_num_rows($result2) != 0 ? 1 : 0;
 
+    $data_questions_2[] = $quizobj;
 
+    $data_questions = [
+        "videoid" => $videoid,
+        "num_quiz_questions" => $num_rows,
+        "quiz_questions" => $data_questions_2
+    ];
+}
 
+// ---- Insert into session_videos ----
+$sql = "INSERT INTO session_videos (sessionid, videoid, startdate, starttime) 
+        VALUES ($sessionid, $videoid, CURDATE(), CURTIME())";
+mysqli_query($conn, $sql);
+$vid = mysqli_insert_id($conn);
 
+// ---- Section handling ----
+$data_sections = [];
+$data_time_sections = [];
+
+$data_sections_2 = [];
+$data_time_sections_2 = [];
+
+class section_store { 
+    public $sectionid;
+    public $start; 
+    public $endl;
+    public $title;
+} 
+
+// Get video data again
+$sql = "SELECT * FROM videos WHERE videoid='$videoid'";
+$result = mysqli_query($conn, $sql);
+$row = mysqli_fetch_assoc($result);
+
+$video_duration      = $row['videolength'];
+$time_sections       = $row['time_section_threshold'];
+$video_sections_bool = $row['video_sections_bool'];
+
+// ---- If video has sections ----
+if ($video_sections_bool == 1) {
+    $sql = "SELECT * FROM video_sections WHERE videoid='$videoid' ORDER BY sectionid";
+    $result = mysqli_query($conn, $sql);
+    $num_rows = mysqli_num_rows($result);
+
+    while($row = mysqli_fetch_assoc($result)) {   
+        $sectionobj = new section_store();
+        $sectionobj->sectionid = $row['sectionid'];
+        $sectionobj->start     = $row['start'];
+        $sectionobj->endl      = $row['end'];
+        $sectionobj->title     = $row['title'];
+
+        $data_sections_2[] = $sectionobj;
+
+        $data_sections = [
+            "videoid" => $videoid,
+            "numsections" => $num_rows,
+            "sections" => $data_sections_2
+        ];
+    }
+}
+
+// ---- Create time-based sections ----
+if ($time_sections > 0) {
+    $intervals = round($video_duration / $time_sections);
+    $end = 0;
+
+    for ($i = 0; $i < $intervals; $i++) {   
+        $sectionid = $i + 1;
+        $start = $end + 1;
+        $end = $start + $time_sections - 1;
+        $title = $sectionid.'_section';
+
+        $sectionobj = new section_store();
+        $sectionobj->sectionid = $sectionid;
+        $sectionobj->start     = $start;
+        $sectionobj->endl      = $end;
+        $sectionobj->title     = $title;
+
+        $data_time_sections_2[] = $sectionobj;
+    }
+
+    $data_time_sections = [
+        "videoid" => $videoid,
+        "numsections" => $intervals,
+        "sections" => $data_time_sections_2
+    ];
+} else {
+    // Avoid division by zero
+    $data_time_sections = [
+        "videoid" => $videoid,
+        "numsections" => 0,
+        "sections" => []
+    ];
+}
 ?>
+
 
 
 
@@ -543,7 +497,7 @@ var str='';
 			
 			str=str+'<div  align="center" class="style2" id=content"'+i+'"> <a onclick="jsfunction('+i+')" href="#">'+ sectionid +' '+ title+'</div><br>';
 			//str='hello';
-			str=str.replace('section', 'Ενότητα');
+			str=str.replace('section', 'οΏ½οΏ½οΏ½οΏ½οΏ½οΏ½οΏ½');
 		  }
     
 	document.getElementById('contents').innerHTML=strtitle+str;

@@ -1,86 +1,102 @@
 <?php
-
-require_once '../config/config.php';
-
-
+require_once '../config/config.php'; // include mysqli connection
 
 session_start();
-if(!isset($_SESSION['mysid'])){
-header("location:main_login.php");}
 
-if(!isset($_GET['videoid'])){
-header("location:main_login.php");}
+// Check if session exists
+if (!isset($_SESSION['mysid'])) {
+    header("location:main_login.php");
+    exit();
+}
 
+// Check if videoid exists in GET
+if (!isset($_GET['videoid'])) {
+    header("location:main_login.php");
+    exit();
+}
 
-require_once '../config/config.php';
+$sessionid = $_SESSION['mysid'];
+$videoid   = $_GET['videoid'];
 
-$sessionid=$_SESSION['mysid'];
-$videoid=$_GET['videoid']; 
+// --------------------
+// Fetch video details
+// --------------------
+$stmt = $conn->prepare("SELECT videotitle, videourl FROM videos WHERE videoid = ?");
+$stmt->bind_param("i", $videoid);
+$stmt->execute();
+$result = $stmt->get_result();
+if ($result->num_rows === 0) {
+    die("Video not found");
+}
+$row = $result->fetch_assoc();
+$videotitle = $row['videotitle'];
+$videourl   = $row['videourl'];
+$stmt->close();
 
-$sql="select * from videos where videoid='$videoid'";
-$result = mysql_query($sql);
-$row = mysql_fetch_array($result);
-$videotitle=$row['videotitle'];
-$videourl=$row['videourl'];
+// --------------------
+// Fetch user id from session
+// --------------------
+$stmt = $conn->prepare("SELECT user_id FROM sessions WHERE sessionid = ?");
+$stmt->bind_param("i", $sessionid);
+$stmt->execute();
+$result = $stmt->get_result();
+if ($result->num_rows === 0) {
+    die("Session not found");
+}
+$row = $result->fetch_assoc();
+$userid = $row['user_id'];
+$stmt->close();
 
-$sql="select * from sessions where sessionid='$sessionid'";
-$result = mysql_query($sql);
-$row = mysql_fetch_array($result);
-$userid=$row['user_id'];
-
-
-
-
- $data=array();
- //unset($data);
-
- $data2=array();
-
- 
-
- class urls_store { 
-	public  $urlid;
-    public $start; 
+// --------------------
+// Class to store URL data
+// --------------------
+class urls_store {
+    public $urlid;
+    public $start;
     public $endl;
-	public $text;
-	public $isEmbedCode;
-} 
+    public $text;
+    public $isEmbedCode;
+}
 
-$sql="select * from video_url_code where videoid='$videoid' order by urlid";
-$result = mysql_query($sql);
-$num_rows = mysql_num_rows($result);
-while($row = mysql_fetch_array($result))
-  {   
-    $urlid=$row['urlid'];
-	$start=$row['start'];
-	$end=$row['end'];
-	$text=$row['text'];
-	$isEmbedCode=$row['isembedcode'];
+$data  = array();
+$data2 = array();
 
-	$urlobj=new urls_store();
-    $urlobj->urlid = $row['urlid'];
-	$urlobj->start = $row['start'];
-    $urlobj->endl = $row['end'];
-    $urlobj->text = $row['text'];
-	$urlobj->isEmbedCode = $row['isembedcode'];
-	array_push($data2, $urlobj);
-     
+// --------------------
+// Fetch video URLs
+// --------------------
+$stmt = $conn->prepare("SELECT urlid, start, end, text, isembedcode 
+                        FROM video_url_code 
+                        WHERE videoid = ? 
+                        ORDER BY urlid");
+$stmt->bind_param("i", $videoid);
+$stmt->execute();
+$result = $stmt->get_result();
+$num_rows = $result->num_rows;
 
-  $data = array(
-		    "videoid" => $videoid,
-			"numurls"=>$num_rows,
-		    "urls"  =>$data2
-		 
-            );
-	 
- //echo json_encode($data);
+while ($row = $result->fetch_assoc()) {
+    $urlobj              = new urls_store();
+    $urlobj->urlid       = $row['urlid'];
+    $urlobj->start       = $row['start'];
+    $urlobj->endl        = $row['end'];
+    $urlobj->text        = $row['text'];
+    $urlobj->isEmbedCode = $row['isembedcode'];
 
-  }
+    array_push($data2, $urlobj);
+}
 
+$data = array(
+    "videoid" => $videoid,
+    "numurls" => $num_rows,
+    "urls"    => $data2
+);
 
+// If you want to debug the result as JSON
+// echo json_encode($data);
 
-
+$stmt->close();
+$conn->close();
 ?>
+
 
 
 

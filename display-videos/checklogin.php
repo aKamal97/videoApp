@@ -1,128 +1,75 @@
 <!DOCTYPE HTML>
-
 <html>
-
 <head>
-<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-7">
-
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 <?php
 require_once '../config/config.php';
+session_start();
 
-//ob_start();
+$username = $_POST['myusername'] ?? '';
+$password = $_POST['mypassword'] ?? '';
 
+$ip1 = $_SERVER['REMOTE_ADDR'] ?? '';
+$ip2 = $_SERVER['HTTP_X_FORWARDED_FOR'] ?? '';
 
+$username = mysqli_real_escape_string($conn, stripslashes($username));
+$password = mysqli_real_escape_string($conn, stripslashes($password));
 
-// Define $myusername and $mypassword 
-$username=$_POST['myusername']; 
-$password=$_POST['mypassword']; 
+$sql    = "SELECT * FROM users WHERE username='$username' AND password='$password' LIMIT 1";
+$result = mysqli_query($conn, $sql);
 
-$ip1=$_SERVER['REMOTE_ADDR'];
-$ip2=$_SERVER['HTTP_X_FORWARDED_FOR'];
-
-
-//echo $ip1;
-//echo "<br>";
-//echo $ip2;
-
-
-
-
-// To protect MySQL injection (more detail about MySQL injection)
-$username = stripslashes($username);
-$password = stripslashes($password);
-$username = mysql_real_escape_string($username);
-$password = mysql_real_escape_string($password);
-
-//echo $username.' '.$password.' <br>';
-
-$sql="SELECT * FROM users WHERE username='$username' and password='$password'";
-$result=mysql_query($sql);
-
-// Mysql_num_row is counting table row
-$count=mysql_num_rows($result);
-
-// If result matched $myusername and $mypassword, table row must be 1 row
-
-if($count==1 ){
-	
- $db_record = mysql_fetch_assoc($result);
- $checked =$db_record['checked'];
-
- if ($checked==1) 
-	 {
-		 $user_id=$db_record['user_id'];
-		 $firstname=$db_record['firstname'];
-		 $am=$db_record['am'];
-
-		// Register $myusername, $mypassword and redirect to file "login_success.php"
-
-		$sql="SELECT * FROM sessions  order by sessionid desc ";
-		$result=mysql_query($sql);
-		$count2=mysql_num_rows($result);
-		if  ($count2==0)
-			{
-			$sid=1; 
-			
-			} 
-		  else {
-			 $db_record = mysql_fetch_assoc($result);
-
-			 $sid=$db_record['sessionid'];
-			 $sid=$sid+1; 	 
-		  }
-
-		//$mysid=$sid;
-		$sql="INSERT INTO SESSIONS (sessionid, user_id,ipaddr_1,ipaddr_2, startdate, starttime) VALUES ('$sid', '$user_id', '$ip1','$ip2',curdate(), curtime())";
-
-		$result=mysql_query($sql);
-		echo $sql;
-		//session_register("mysid");
-		//session_register("user_id");
-		//session_register("username");
-
-		session_start();
-		$_SESSION['mysid']=$sid;
-		$_SESSION['user_id']=$user_id;
-		$_SESSION['username']=$firstname;
-		$_SESSION['am']=$am;
-
-        //echo  'userid '.$user_id;
-		if (!file_exists('img/user_'.$user_id.'_'.$am)) {
-			mkdir('img/user_'.$user_id.'_'.$am, 0777, true);
-		}
-		//$_SESSION['videotime']=0;
-		//$_SESSION['vid_id']=1;
-
-
-
-
-		/*echo $mysid.'<br> ';
-		echo $user_id.'<br>';
-		echo $username.'<br>';*/
-
-		//header("location: login_success.php");
-
-		header("location: start.php");
-  }
-else {
-	  echo "Ο Διαχειριστής δεν έχει ακόμη ελέγξει τα στοιχεία σας. Παρακαλώ ξαναπροσπαθήστε αργότερα";
-     }
-
-
-}
-else {
-header("location: main_login-2.php");
-//echo "Wrong Username or Password";
-
-
+if (!$result) {
+    die("Query failed: " . mysqli_error($conn));
 }
 
-//ob_end_flush();
+if (mysqli_num_rows($result) == 1) {
+    $db_record = mysqli_fetch_assoc($result);
+    $checked   = $db_record['checked'];
+
+    if ($checked == 1) {
+        $user_id  = $db_record['user_id'];
+        $firstname = $db_record['firstname'];
+        $am        = $db_record['am'];
+
+        $sql2    = "SELECT sessionid FROM sessions ORDER BY sessionid DESC LIMIT 1";
+        $result2 = mysqli_query($conn, $sql2);
+
+        if (mysqli_num_rows($result2) == 0) {
+            $sid = 1;
+        } else {
+            $row = mysqli_fetch_assoc($result2);
+            $sid = $row['sessionid'] + 1;
+        }
+
+        
+        $sql3 = "INSERT INTO sessions (sessionid, user_id, ipaddr_1, ipaddr_2, startdate, starttime) 
+                 VALUES ('$sid', '$user_id', '$ip1', '$ip2', CURDATE(), CURTIME())";
+
+        if (!mysqli_query($conn, $sql3)) {
+            die("Error inserting session: " . mysqli_error($conn));
+        }
+
+        $_SESSION['mysid']   = $sid;
+        $_SESSION['user_id'] = $user_id;
+        $_SESSION['username'] = $firstname;
+        $_SESSION['am'] = $am;
+
+        if (!file_exists("img/user_{$user_id}_{$am}")) {
+            mkdir("img/user_{$user_id}_{$am}", 0777, true);
+        }
+
+        // ΨͺΩΨ¬ΩΩ
+        header("Location: start.php");
+        exit;
+    } else {
+        echo "Ψ§ΩΨ­Ψ³Ψ§Ψ¨ ΨΊΩΨ± ΩΩΨΉΩΨ Ψ¨Ψ±Ψ¬Ψ§Ψ‘ ΩΨ±Ψ§Ψ¬ΨΉΨ© Ψ§ΩΨ₯Ψ―Ψ§Ψ±Ψ©.";
+    }
+} else {
+    header("Location: main_login-2.php");
+    exit;
+}
 ?>
-
+</head>
+<body>
 </body>
-
 </html>
-
-
-

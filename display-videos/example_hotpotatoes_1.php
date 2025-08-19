@@ -1,41 +1,59 @@
 <?php
-
-require_once '../config/config.php';
+require_once '../config/config.php'; // include mysqli connection
 session_start();
 
-$exerciseid=1;
-$sessionid=$_SESSION['mysid'];
-$vid=$_SESSION['vid'];
-$userid=$_SESSION['user_id'];
-//echo 'sessionid :'.$sessionid;
-//echo 'vid  :'.$vid;
+// Check if user session exists
+if (!isset($_SESSION['mysid']) || !isset($_SESSION['vid']) || !isset($_SESSION['user_id'])) {
+    die("Invalid session. Please login again.");
+}
 
-$sql="select * from session_potatoes where userid=$userid and exerciseid=$exerciseid";
-$result=mysql_query($sql);
-//echo $sql;
+$exerciseid = 1; // exercise id is fixed here
+$sessionid  = $_SESSION['mysid'];
+$vid        = $_SESSION['vid'];
+$userid     = $_SESSION['user_id'];
 
-$num_rows_total = mysql_num_rows($result);
+// --------------------
+// 1. Count total attempts for this exercise
+// --------------------
+$stmt = $conn->prepare("SELECT COUNT(*) as total FROM session_potatoes WHERE userid = ? AND exerciseid = ?");
+$stmt->bind_param("ii", $userid, $exerciseid);
+$stmt->execute();
+$result = $stmt->get_result();
+$row = $result->fetch_assoc();
+$num_rows_total = $row['total'];
+$stmt->close();
 
-$sql="select * from session_potatoes where userid=$userid and exerciseid=$exerciseid and alldone=1";
-$result=mysql_query($sql);
-//echo $sql;
+// --------------------
+// 2. Count successful attempts (alldone = 1)
+// --------------------
+$stmt = $conn->prepare("SELECT COUNT(*) as done FROM session_potatoes WHERE userid = ? AND exerciseid = ? AND alldone = 1");
+$stmt->bind_param("ii", $userid, $exerciseid);
+$stmt->execute();
+$result = $stmt->get_result();
+$row = $result->fetch_assoc();
+$num_rows = $row['done'];
+$stmt->close();
 
-$num_rows = mysql_num_rows($result);
+// --------------------
+// 3. Check if exercise was completed
+// --------------------
+if ($num_rows != 0) {
+    $tries = $num_rows_total - 1; // unsuccessful attempts before success
+    if ($tries == 1) {
+        $answerstr = $tries . ' unsuccessful attempt';
+    } else {
+        $answerstr = $tries . ' unsuccessful attempts';
+    }
 
+    echo '<br><br><br><h3>Exercise ' . $exerciseid . ' has been completed, you had ' . $answerstr . '<br>Continue by pressing play</h3>';
 
+    // Stop execution after showing completion message
+    exit();
+}
 
-
-if ($num_rows!=0) {
-	$tries=$num_rows_total-1;
-	if  ($tries==1) {$answerstr= $tries.'unsuccesful attempt';}
-	if   ($tries!=1) {$answerstr= $tries.' unsuccesful attempts';}
-	echo '<br><br><br><h3>Exercise ',$exerciseid.' has been completed, you had '.$answerstr.'<br>'.'Continue by pressing play</h3>';}
-if ($num_rows!=0){
-		//sleep(1);
-		exit();
-  } 
-
+$conn->close();
 ?>
+
 
 
 

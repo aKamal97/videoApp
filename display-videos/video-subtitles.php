@@ -1,243 +1,172 @@
 <?php
-
 require_once '../config/config.php';
-
-
 session_start();
-if(!isset($_SESSION['mysid'])){
-header("location:main_login.php");}
 
-if(!isset($_GET['videoid'])){
-header("location:main_login.php");}
-
-
-$sessionid=$_SESSION['mysid'];
-$videoid=$_GET['videoid']; 
-
-$sql="select * from videos where videoid='$videoid'";
-$result = mysql_query($sql);
-$row = mysql_fetch_array($result);
-$videotitle=$row['videotitle'];
-$videourl=$row['videourl'];
-
-$sql="select * from sessions where sessionid='$sessionid'";
-$result = mysql_query($sql);
-$row = mysql_fetch_array($result);
-$userid=$row['user_id'];
-
-
-
-
-
-
- $data=array();
- //unset($data);
-
- $data2=array();
-
- 
-
- class subtitles_store { 
-	public  $subtitleid;
-    public $start; 
-    public $endl;
-	public $text;
-} 
-
-$sql="select * from video_subtitles where videoid='$videoid' order by subtitleid";
-$result = mysql_query($sql);
-$num_rows = mysql_num_rows($result);
-while($row = mysql_fetch_array($result))
-  {   
-    $subtitleid=$row['subtitleid'];
-	$start=$row['start'];
-	$end=$row['end'];
-	$text=$row['text'];
-
-	$subtitleobj=new subtitles_store();
-    $subtitleobj->subtitleid = $row['subtitleid'];
-	$subtitleobj->start = $row['start'];
-    $subtitleobj->endl = $row['end'];
-    $subtitleobj->text = $row['text'];
-	array_push($data2, $subtitleobj);
-     
-
-  $data = array(
-		    "videoid" => $videoid,
-			"numsubtitles"=>$num_rows,
-		    "subtitles"  =>$data2
-		 
-            );
-	 
-// echo json_encode($data);
-
-  }
-
-
-
-
-?>
-
-
-
-
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
-<HTML>
- <HEAD>
-  <!--script src="http://code.jquery.com/jquery-1.7.1.min.js"></script-->
-  <script src="../build/jquery.js"></script>	
-  <!--script src="../build/mediaelement.js"></script-->
-  <script src="../build/mediaelement-and-player.min.js"></script>
-  <script src="testforfiles.js"></script>
-  <link rel="stylesheet" href="jquery-3.css" type="text/css" />
-  <link rel="stylesheet" href="../build/mediaelementplayer.min.css" />
-  
-	 <title><?php echo $videotitle; ?></title>
-	<meta charset="utf-8" />
- </HEAD>
-
- <BODY>
-
- 
-
- <div id="video" >
- <h2>Video Title: <?php echo $videotitle; ?></h2><br>
- 
-<video id="player1" width="500" height="380">
-    <source src="<?php echo $videourl; ?>" type="video/youtube" >
-	 <!--track kind="subtitles" src="../media/graphic_design.srt" srclang = "el" /-->
-	 
-
-</video>
-
-
-
-
-
-
-
-<span id="time"></span>
-<span id="percent"></span>
-
-<br><br>
-
-<div class="container">
- <span id="label"></span>
-
-
-
-<br><br>
-<br><span id="examplecomframe"></span>
-
- </div>
-
-
-
-
-
-<script>
-
- var timestamps = <?php echo json_encode($data); ?>;
-
-
-var last = 0,
-now,
-old;
-
-function showtime(ltime){
-	var timetmp=ltime;
-	var hrs = Math.floor(timetmp/3600);
-    timetmp = timetmp - 3600 * hrs;
-	var mins = Math.floor(timetmp/60);
-	timetmp = timetmp - 60 * mins;
-	var secs = Math.floor(timetmp);
-	var ltimetext = (hrs < 10 ? "0" : "" ) + hrs + ":" 
-				 + (mins < 10 ? "0" : "" ) + mins + ":" 
-				 + (secs < 10 ? "0" : "" ) + secs;
-	return ltimetext;
-
-
+// Check if session exists
+if (!isset($_SESSION['mysid'])) {
+    header("Location: main_login.php");
+    exit();
 }
 
-function showsection(t){
-	
-var text='';
-      for(i=0;i<timestamps.numsubtitles; i++){
-        if(t >= timestamps.subtitles[i].start && t <= timestamps.subtitles[i].endl){
-			 text=timestamps.subtitles[i].text;
-			 document.getElementById('label').innerHTML = text;
-           } 
+// Check if videoid exists in GET
+if (!isset($_GET['videoid'])) {
+    header("Location: main_login.php");
+    exit();
+}
 
-		  }
+// Connect to database using MySQLi
+$conn = new mysqli("localhost", "root", "", "videoapp");
+if ($conn->connect_error) {
+    die("Connection failed: " . $conn->connect_error);
+}
 
-    if (text=='')
-    {
-	document.getElementById('label').innerHTML = ' ';
-    }
-      
-    };
+$sessionid = intval($_SESSION['mysid']);
+$videoid   = intval($_GET['videoid']);
 
+// Fetch video details
+$stmt = $conn->prepare("SELECT * FROM videos WHERE videoid = ?");
+$stmt->bind_param("i", $videoid);
+$stmt->execute();
+$result = $stmt->get_result();
+$row = $result->fetch_assoc();
 
+$videotitle = $row['videotitle'];
+$videourl   = $row['videourl'];
 
+// Fetch user id from sessions
+$stmt = $conn->prepare("SELECT * FROM sessions WHERE sessionid = ?");
+$stmt->bind_param("i", $sessionid);
+$stmt->execute();
+$result = $stmt->get_result();
+$row = $result->fetch_assoc();
+$userid = $row['user_id'];
 
+// Prepare subtitles data
+$data = array();
+$data2 = array();
 
+// Class for storing subtitles
+class subtitles_store { 
+    public $subtitleid;
+    public $start; 
+    public $endl;
+    public $text;
+}
 
-$('video').mediaelementplayer({
-	//framesPerSecond: 20,
-	features: ['playpause','progress','current','duration','tracks','volume'],
-		
-    // Hide controls when playing and mouse is not over the video
-    
-	
-	
-	success: function(me, node, player) {
-		
+// Fetch subtitles
+$stmt = $conn->prepare("SELECT * FROM video_subtitles WHERE videoid = ? ORDER BY subtitleid");
+$stmt->bind_param("i", $videoid);
+$stmt->execute();
+$result = $stmt->get_result();
+$num_rows = $result->num_rows;
 
-		
-old=0;
-now=0;
- 
+while ($row = $result->fetch_assoc()) {
+    $subtitleobj = new subtitles_store();
+    $subtitleobj->subtitleid = $row['subtitleid'];
+    $subtitleobj->start      = $row['start'];
+    $subtitleobj->endl       = $row['end'];
+    $subtitleobj->text       = $row['text'];
 
-//time_cuepoints = parseInt(me.duration/interval);
+    array_push($data2, $subtitleobj);
 
-var events = ['loadstart', 'play','pause', 'ended','seeking','volumechange', 'muted'];
-		
-		
-	//me.play();
-	me.addEventListener('timeupdate', function() {
-       
+    $data = array(
+        "videoid"      => $videoid,
+        "numsubtitles" => $num_rows,
+        "subtitles"    => $data2
+    );
+}
 
-        //timetext=showtime(me.currentTime);
-		now = parseInt(me.currentTime);
-		timetext=showtime(me.currentTime);
-		durationtext=me.duration;
-        //document.getElementById('duration').innerHTML = 'Duration: '+durationtext;
-		document.getElementById('time').innerHTML = 'Time : '+ timetext;
-		percent=parseInt(me.currentTime/me.duration *100);
-		document.getElementById('percent').innerHTML = 'percent : '+ percent;
-		
-		
+// Close DB connection
+$conn->close();
+?>
 
-        if (now!=old)
-        {
-		old=now;
-
-		showsection(now);
-        }
-		
-
-	}, false);
-
-}});
-
-
-
-
-
-</script>
+<!DOCTYPE HTML>
+<html>
+<head>
+    <script src="../build/jquery.js"></script>	
+    <script src="../build/mediaelement-and-player.min.js"></script>
+    <script src="testforfiles.js"></script>
+    <link rel="stylesheet" href="jquery-3.css" type="text/css" />
+    <link rel="stylesheet" href="../build/mediaelementplayer.min.css" />
   
+    <title><?php echo htmlspecialchars($videotitle); ?></title>
+    <meta charset="utf-8" />
+</head>
+<body>
 
+<div id="video">
+    <h2>Video Title: <?php echo htmlspecialchars($videotitle); ?></h2><br>
+ 
+    <video id="player1" width="500" height="380">
+        <source src="<?php echo htmlspecialchars($videourl); ?>" type="video/youtube">
+    </video>
 
+    <span id="time"></span>
+    <span id="percent"></span>
 
- </BODY>
-</HTML>
+    <br><br>
+
+    <div class="container">
+        <span id="label"></span>
+        <br><br>
+        <br><span id="examplecomframe"></span>
+    </div>
+</div>
+
+<script>
+// Load subtitles data from PHP
+var timestamps = <?php echo json_encode($data); ?>;
+
+var last = 0, now, old;
+
+// Function to format time
+function showtime(ltime){
+    var timetmp = ltime;
+    var hrs = Math.floor(timetmp/3600);
+    timetmp -= 3600 * hrs;
+    var mins = Math.floor(timetmp/60);
+    timetmp -= 60 * mins;
+    var secs = Math.floor(timetmp);
+    return (hrs < 10 ? "0" : "" ) + hrs + ":" 
+         + (mins < 10 ? "0" : "" ) + mins + ":" 
+         + (secs < 10 ? "0" : "" ) + secs;
+}
+
+// Function to show subtitles according to time
+function showsection(t){
+    var text = '';
+    for (i = 0; i < timestamps.numsubtitles; i++) {
+        if (t >= timestamps.subtitles[i].start && t <= timestamps.subtitles[i].endl) {
+            text = timestamps.subtitles[i].text;
+            document.getElementById('label').innerHTML = text;
+        }
+    }
+    if (text == '') {
+        document.getElementById('label').innerHTML = ' ';
+    }
+}
+
+// MediaElement.js player init
+$('video').mediaelementplayer({
+    features: ['playpause','progress','current','duration','tracks','volume'],
+    success: function(me, node, player) {
+        old=0;
+        now=0;
+
+        me.addEventListener('timeupdate', function() {
+            now = parseInt(me.currentTime);
+            timetext = showtime(me.currentTime);
+            document.getElementById('time').innerHTML = 'Time : ' + timetext;
+            percent = parseInt(me.currentTime / me.duration * 100);
+            document.getElementById('percent').innerHTML = 'percent : ' + percent;
+
+            if (now != old) {
+                old = now;
+                showsection(now);
+            }
+        }, false);
+    }
+});
+</script>
+</body>
+</html>
